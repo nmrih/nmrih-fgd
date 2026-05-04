@@ -1,11 +1,11 @@
 //-------------------------------------------------------------------------
 //
 // NMRiH FGD
-// Version 1.14.2
+// Version 1.15.0
 //
 //-------------------------------------------------------------------------
 
-@include "base.fgd"
+@include "./base.fgd"
 
 //-------------------------------------------------------------------------
 //
@@ -28,38 +28,23 @@
 	shotgun(string) : "shotgun" : "0" : "Any shotgun"
 ]
 
-@BaseClass = Glowable
-[
-	glowable(choices) : "Enable Glow Effect" : 0 : "Sets the 'glowable' state. If you want to use glow properties and inputs, you'll need to enable this first." =
-	[
-		0 : "No"
-		1 : "Yes"
-	]
-	
-	glowstartdisabled(choices) : "Glow Start Disabled" : 0 : "Glow starts disabled." =
-	[
-		0 : "No"
-		1 : "Yes"
-	]
-	
-	glowblip(choices) : "Glow Show Compass Blip" : 0 : "Should this glow show a 'blip' in the player compass?" =
-	[
-		0 : "No"
-		1 : "Yes"
-	]
-	
-	glowcolor(color255) : "Glow Color" : "255 255 255" : "Glow color."
-	glowdistance(float) : "Glow Distance" : "512" : "Max distance for a player to see the glow, in units. Use -1 for no limit."
-	
-	// Inputs
-	input EnableGlow(void) : "Enable glow."
-	input DisableGlow(void) : "Disable glow."
-	input SetGlowColor(color255) : "Set glow color."
-]
-
 @BaseClass = BaseZombie
 [
 	modeloverride(studio) : "Model Override" : "" : "Sets a custom model for this zombie."
+	hulloverride(choices) : "Hull Override" : -1 : "Overrides collision hull for this zombie." =
+	[
+		-1 : "None"
+		0 :	"HULL_HUMAN"
+		1 : "HULL_SMALL_CENTERED"
+		2 : "HULL_WIDE_HUMAN"
+		3 : "HULL_TINY"
+		4 : "HULL_WIDE_SHORT"
+		5 : "HULL_MEDIUM"
+		6 : "HULL_TINY_CENTERED"
+		7 : "HULL_LARGE"
+		8 : "HULL_LARGE_CENTERED"
+		9 : "HULL_MEDIUM_TALL"
+	]
 	
 	// Workaround for a Hammer "feature", model selector always sets the skin value
 	skin(integer) : "Skin (Unused)" : 0
@@ -84,6 +69,18 @@
 		1 : "Yes"
 	]
 
+	ignorezombierules(choices) : "Ignore Zombie Rules?" : 0 : "When 'Yes', game rules will not recognize this NPC as a 'zombie'. Useful for custom NPCs that wish to utilize zombie behavior." =
+	[
+		0 : "No"
+		1 : "Yes"
+	]
+
+	ignoregrease(choices) : "Ignore Grease?" : 0 : "When 'Yes', this zombie will not swap between NPC assigned collision groups to phase through each other." =
+	[
+		0 : "No"
+		1 : "Yes"
+	]
+
 	alertsoundoverride(sound) : "Alert Sound Override" : ""
 	attacksoundoverride(sound) : "Attack Sound Override" : ""
 	deathsoundoverride(sound) : "Death Sound Override" : ""
@@ -94,6 +91,7 @@
 	input BecomeRunner(void) : "Turn this zombie into a runner."
 	input BecomeCrawler(void) : "Turn this zombie into a crawler."
 	input BecomeShambler(void) : "Turn this zombie into a shambler."
+	input HeadSplit(void) : "Turn this zombie's head into a showery pop, activator is set as an attacker."
 	
 	// Outputs
 	output OnHealthChanged(float) : "Fired when the health of this NPC changes, passing the new value of health as a percentage of max health, from [0..1]."
@@ -164,12 +162,6 @@
 		1 : "Yes"
 	]
 	
-	spawnflags(flags) =
-	[
-		8 : "Infinite Hold Time" : 0
-		16 : "Snap to goal angles" : 0
-	]
-	
 	speed(string) : "Initial Speed" : "0" : "The starting speed that the camera moves at, if it's on a path track."
 	acceleration(string) : "Acceleration units/sec^2" : "500" : "The speed at which the camera accelerates to path corner's desired speeds."
 	deceleration(string) : "Stop Deceleration units/sec^2" : "500" : "The speed at which the camera decelerates to path corner's desired speeds."
@@ -206,507 +198,6 @@
 
 //-------------------------------------------------------------------------
 //
-// base.fgd Class Overrides
-//
-//-------------------------------------------------------------------------
-
-@BaseClass = Targetname 
-[ 
-	targetname(target_source) : "Name" : : "The name that other entities refer to this entity by."
-	
-	vscripts(string) : "Entity Scripts" : "" : "Name(s) of script files that are executed after all entities have spawned."
-	thinkfunction(string) : "Script think function" : "" : "Name of a function in this entity's script scope which will be called automatically."
-
-	input RunScriptFile(string) : "Execute a game script file from disk"
-	input RunScriptCode(string) : "Execute a string of script source code"
-	input RunScriptCodeQuotable(string) : "Execute a string of script source code which converts double apostrophes ('') to quotation marks for strings"
-	input CallScriptFunction(string) : "Call a named function from this entity's Activation Script"
-	input ClearScriptScope(void) : "Clears this entity's script scope"
-
-	input SetCauser(void) : "Set who gets credit for a kill from this entity. If an entity was the activator of the current I/O chain firing, such as Button::OnPress->Relay::Trigger->Relay::OnTrigger->HurtTrigger->SetCauser. Whatever activated the button to be pressed would be what SetCauser uses."
-	
-	// Inputs
-	input Kill(void) : "Removes this entity from the world."
-	input KillHierarchy(void) : "Removes this entity and all its children from the world."
-	input AddOutput(string) : "Adds an entity I/O connection to this entity. Format: <output name> <targetname>:<inputname>:<parameter>:<delay>:<max times to fire (-1 == infinite)>. Very dangerous, use with care."
-	input FireUser1(void) : "Causes this entity's OnUser1 output to be fired."
-	input FireUser2(void) : "Causes this entity's OnUser2 output to be fired."
-	input FireUser3(void) : "Causes this entity's OnUser3 output to be fired."
-	input FireUser4(void) : "Causes this entity's OnUser4 output to be fired."
-
-	// Outputs	
-	output OnUser1(void) : "Fired in response to FireUser1 input."
-	output OnUser2(void) : "Fired in response to FireUser2 input."
-	output OnUser3(void) : "Fired in response to FireUser3 input."
-	output OnUser4(void) : "Fired in response to FireUser4 input."
-]
-
-@BaseClass base(Targetname) = BaseFilter
-[
-	Negated(choices) : "Filter mode" : 0 : "If set to Allow, only entities who match the criteria will pass the filter. "+
-		"If set to Disallow, only entities who do NOT match the criteria will pass the filter." =
-	[
-		0 : "Allow entities that match criteria"
-		1 : "Disallow entities that match criteria"
-	]
-
-	// Inputs
-	input TestActivator(void) : "Test the activator against the filter and fires OnPass or OnFail output."
-
-	// Outputs
-	output OnPass(void) : "Fired in response to TestActivator input if the activator passes the filter."
-	output OnFail(void) : "Fired in response to TestActivator input if the activator fails to pass the filter."
-]
-
-@BaseClass base(Targetname, Angles, EnableDisable) iconsprite("editor/npc_maker.vmt") color(0 0 255) = BaseNPCMaker
-[
-	StartDisabled(choices) : "Start Disabled" : 1 =
-	[
-		0 : "No"
-		1 : "Yes"
-	]
-
-	spawnflags(Flags) = 
-	[
-		// Only in npc__maker, npc_template_maker uses flag from template NPC
-		16 : "Fade Corpse" : 0
-		32 : "Infinite Children" : 0
-		64 : "Do Not Drop" : 0
-		128 : "Don't Spawn While Visible" : 0
-	]
-
-	MaxNPCCount(integer) : "Num. of NPCs" : 1 : "Number of NPCs that will spawn before this spawner is exhausted."
-	SpawnFrequency(string) : "Frequency" : "5" : "How often (in seconds) a new NPC will be spawned. If set to -1, a new NPC will be made when the last NPC dies."
-	MaxLiveChildren(integer) : "Max Live NPCs" : 5 : "Maximum number of live children allowed at any one time (new ones will not be made until one dies). If set to -1, no limit is applied."
-	
-	// Outputs
-	output OnSpawnNPC(string) : "Fired when an NPC is spawned. The activator is the NPC, and the string is the name of the NPC." 
-	output OnAllSpawned(void) : "Fired when the spawned is exhausted (all children have been spawned)."
-	output OnAllSpawnedDead(void) : "Fired when the spawner is exhausted (all children have been spawned) and all spawned children have died."
-	output OnAllLiveChildrenDead(void) : "Fired when all spawned children have died. This does not mean the spawned is exhausted, so a new child may be spawned any time after this (unless the maker is disabled)."
-
-	// Inputs
-	input Spawn(void) : "Spawns an NPC."
-	input Toggle(void) : "Toggles the spawner enabled/disabled state."
-	input Enable(void) : "Enables the spawner."
-	input Disable(void) : "Disables the spawner."
-	input AddMaxChildren(integer) : "Adds to the number of NPCs that can spawn before the spawner is exhausted. If an exhausted spawner is given some children to spawn, it still wont begin spawning until it is re-enabled with the Enable input."
-	input SetMaxChildren(integer) : "Sets the number of NPCs that can spawn before the spawner is exhausted. If an exhausted spawner is given some children to spawn, it still won't begin spawning until it is re-enabled with the Enable input."
-	input SetMaxLiveChildren(integer) : "Sets the maximum number of NPCs that can be alive at any one time from this spawner."
-	input SetSpawnFrequency(float) : "Sets how often (in seconds) a new NPC will be spawned."
-]
-
-@PointClass base(Targetname, prop_dynamic_base, EnableDisable, Glowable) sphere(fademindist) sphere(fademaxdist) studioprop() = prop_dynamic :
-	"A prop that can be placed in hierarchy and can play animations. It can also be configured to break when it takes enough damage. "+
-	"Note that the health of the object will be overridden by the health inside the model, to ensure consistent health game-wide. "+
-	"If the model used by the prop is configured to be used as a prop_physics (i.e. it should be physically simulated) then it CANNOT be "+
-	"used as a prop_dynamic. Upon level load it will display a warning in the console and remove itself. Use a prop_physics instead."
-[
-]
-
-@PointClass base(Targetname, prop_dynamic_base, Glowable) studioprop() = prop_dynamic_override :
-	"A prop that can be placed in hierarchy and can play animations. It can also be configured to break when it takes enough damage.\n"+
-	"prop_dynamic_override is a prototyping entity only. It will allow the use of models designed to be used as prop_physics."
-[
-	health(integer) : "Health" : 0 : "Number of points of damage to take before breaking.  0 means don't break."	
-]
-
-@PointClass base(Targetname, BasePropPhysics, Glowable) studioprop() sphere(fademindist) sphere(fademaxdist) = prop_physics_override :
-	"A prop that physically simulates as a single rigid body. It can be constrained to other physics objects using hinges "+
-	"or other constraints. It can also be configured to break when it takes enough damage. Health can be overridden on this version."
-[
-	health(integer) : "Health" : 0 : "Number of points of damage to take before breaking.  0 means don't break."
-	
-	// Inputs
-	input Ignite(void) : "Ignite, burst into flames."
-	input IgniteLifetime(float) : "Ignite, with a parameter lifetime."
-	input IgniteNumHitboxFires(integer) : "Ignite, with a parameternumber of hitbox fires."
-	input IgniteHitboxFireScale(float) : "Ignite, with a parameter hitbox fire scale."
-]
-
-@PointClass base(Targetname, BasePropPhysics, RenderFields, Glowable) studioprop() sphere(fademindist) sphere(fademaxdist) = prop_physics :
-	"A prop that physically simulates as a single rigid body. It can be constrained to other physics objects using hinges "+
-	"or other constraints. It can also be configured to break when it takes enough damage. "+
-	"Note that the health of the object will be overridden by the health inside the model, to ensure consistent health game-wide. "+
-	"If the model used by the prop is configured to be used as a prop_dynamic (i.e. it should not be physically simulated) then it CANNOT be "+
-	"used as a prop_physics. Upon level load it will display a warning in the console and remove itself. Use a prop_dynamic instead."
-[
-	// Inputs
-	input Ignite(void) : "Ignite, burst into flames."
-	input IgniteLifetime(float) : "Ignite, with a parameter lifetime."
-	input IgniteNumHitboxFires(integer) : "Ignite, with a parameternumber of hitbox fires."
-	input IgniteHitboxFireScale(float) : "Ignite, with a parameter hitbox fire scale."
-]
-
-@PointClass base(Targetname, Parentname) iconsprite("editor/env_explosion.vmt") = env_explosion :
-	"An entity that creates an explosion at its origin."
-[
-	iMagnitude(Integer) : "Magnitude" : 100 : "The amount of damage done by the explosion."
-	// If no radius override, magnitude will determine radius.
-	iRadiusOverride(Integer) : "Radius Override" : 0 : "If specified, the radius in which the explosion damages entities. If unspecified, the radius will be based on the magnitude."
-	fireballsprite(sprite) : "Fireball Sprite" : "sprites/zerogxplode.spr"
-	rendermode(choices) : "Render Mode" : 5 =
-	[
-		0: "Normal"
-		4: "Solid"
-		5: "Additive"
-	]
-	spawnflags(flags) =
-	[
-		1: "No Damage" : 0
-		2: "Repeatable" : 0
-		4: "No Fireball" : 0
-		8: "No Smoke" : 0
-		16: "No Decal" : 0
-		32: "No Sparks" : 0
-		64: "No Sound" : 0
-		128: "Random Orientation" : 0
-		256: "No Fireball Smoke" : 0
-		512: "No particles" : 0
-		1024: "No DLights" : 0
-		2048: "Don't clamp Min" : 0
-		4096: "Don't clamp Max" : 0
-		8192: "Damage above surface only" : 0
-		16384: "Generic damage" : 0
-	]
-
-	ignoredEntity(target_destination) : "Ignored Entity" : : "Do not harm or affect the named entity."
-
-	filtername(filterclass) : "Filter Name" : : "Filter to use to see if activator triggers me. See filter_activator_name for more explanation."
-
-	// Inputs
-	input Explode(void) : "Triggers the explosion."
-]
-
-@SolidClass base(Trigger, Targetname) = trigger_hurt :
-	"A trigger volume that damages entities that touch it."
-[
-	master(string) : "Master (Obsolete)" : : "Legacy support: The name of a master entity. If the master hasn't been activated, this entity will not activate."
-	damage(integer) : "Damage" : 10 : "The amount of damage done to entities that touch this trigger. The damage is done every half-second. See also 'Damage Model' for extra details on how damage can be dealt."
-	damagecap(integer) : "Damage Cap" : 20 : "Maximum damage dealt per second. This field is only used if you select the Doubling w/Forgiveness damage model, via the spawnflag."
-	damagetype(choices) : "Damage Type" : 0 =
-	[
-		0 : "GENERIC"
-		1 : "CRUSH"
-		2 : "BULLET"
-		4 : "SLASH"
-		8 : "BURN"
-		16 : "FREEZE"
-		32 : "FALL"
-		64 : "BLAST"
-		128 : "CLUB"
-		256 : "SHOCK"
-		512 : "SONIC"
-		1024 : "ENERGYBEAM"
-		16384: "DROWN"
-		32768 : "PARALYSE"
-		131072 : "POISON"
-		2097152 : "SLOWBURN"
-		4194304 : "REMOVENORAGDOLL"
-		65536 : "INFECT (NMRiH)" // DMG_NERVEGAS
-		262144 : "BLEEDOUT (NMRiH)" // DMG_RADIATION
-		524288 : "HEADSHOT (NMRiH)" // DMG_DROWNRECOVER
-		1048576 : "NOINFECTTURN (NMRiH)" // DMG_ACID
-		16777216 : "STAGGER (NMRiH)" // DMG_PLASMA
-	]
-
-	damagemodel(choices) : "Damage Model" : 0 : "How damage is dealt. Normal always does the specified amount of damage each half second. Doubling starts with the specified amount and doubles it each time it hurts the toucher. Forgiveness means that if the toucher gets out of the trigger the damage will reset to the specified value. Good for making triggers that are deadly over time without having to cause massive damage on each touch." =
-	[
-		0 : "Normal"
-		1 : "Doubling w/forgiveness"
-	]
-
-	nodmgforce(choices) : "Zero Damage Force" : 0 : "Should the damaged entity receive no physics force from this trigger." =
-	[
-		0 : "No"
-		1 : "Yes"
-	]
-	
-	// Inputs
-	input SetDamage(float) : "Set a new amount of damage for this trigger."
-
-	// Outputs
-	output OnHurt(void) : "Fired whenever this trigger hurts something other than a player."
-	output OnHurtPlayer(void) : "Fired whenever this trigger hurts a player."
-	output OnPlayerDeath(void) : "Fired whenever this trigger kills a player."
-]
-
-@SolidClass base(Targetname, Parentname) = func_precipitation : 
-	"A brush entity that creates rain and snow inside its volume."
-[
-	renderamt(integer) : "Density (0-100%)" : 5	: "How dense the precipitation should be. This can be changed later with the 'Alpha' input."
-	rendercolor(color255) : "Color (R G B)" : "100 100 100"
-	preciptype(choices) : "Precipitation Type" : 0 =	
-	[
-		0 : "Rain"
-		1 : "Snow"
-		2 : "Ash"
-		3 : "Snowfall"
-		4 : "Particle Rain"
-		5 : "Particle Ash"
-		6 : "Particle Rainstorm"
-		7 : "Particle Snow"
-	]
-	
-	spawnflags(flags) =
-	[
-		1 : "Particle types only: Clamp precipitation to brush bounds" : 1
-		2 : "Particle types only: Suppress outer particle (recommended if clamping)" : 1
-	]
-]
-
-@PointClass base(Targetname) iconsprite("editor/ambient_generic.vmt") sphere() = ambient_generic : "Universal ambient sound. Use it to play and control a single sound."
-[
-	message(sound) : "Sound Name" : "" : "Name of the GameSound entry for the sound to play. Also supports direct .wav filenames."
-	health(integer) : "Volume" : 10 : "Sound volume, expressed as a range from 0 to 10, where 10 is the loudest."
-
-	allow_mp3_loop(choices) : "Allow MP3 Looping?" : 0 : "MP3 looping (introduced in 1.13.5) isn't enabled by default to maintain backward compatibility with existing maps. Toggle this keyfield to support looping (also requires 'Is NOT Looped' flag to be unticked)" =
-	[
-		0 : "No"
-		1 : "Yes"
-	]
-
-	preset(choices) : "Dynamic Presets" : 0 =						// NEEDHELP
-	[
-		0: "None"
-		1: "Huge Machine"
-		2: "Big Machine"
-		3: "Machine"
-		4: "Slow Fade in"  
-		5: "Fade in"
-		6: "Quick Fade in"
-		7: "Slow Pulse"
-		8: "Pulse"
-		9: "Quick pulse"
-		10: "Slow Oscillator"
-		11: "Oscillator"
-		12: "Quick Oscillator"
-		13: "Grunge pitch"
-		14: "Very low pitch"
-		15: "Low pitch"
-		16: "High pitch"
-		17: "Very high pitch"
-		18: "Screaming pitch"
-		19: "Oscillate spinup/down"
-		20: "Pulse spinup/down"
-		21: "Random pitch"
-		22: "Random pitch fast"
-		23: "Incremental Spinup"
-		24: "Alien"
-		25: "Bizzare"
-		26: "Planet X"
-		27: "Haunted"
-	]
-	volstart(integer) : "Start Volume" : 0							// NEEDHELP
-	fadeinsecs(integer) : "Fade in time in seconds (0-100)" : 0		// NEEDHELP
-	fadeoutsecs(integer) : "Fade out time in seconds (0-100)" : 0	// NEEDHELP
-	pitch(integer) : "Pitch" : 100 : "Sound pitch, expressed as a range from 1 to 255, where 100 is the sound's default pitch."
-	pitchstart(integer) : "Start Pitch" : 100						// NEEDHELP
-	spinup(integer) : "Spin up time (0-100)" : 0					// NEEDHELP
-	spindown(integer) : "Spin down time (0-100)" : 0				// NEEDHELP
-	lfotype(integer) : "LFO type 0)off 1)sqr 2)tri 3)rnd" : 0		// NEEDHELP
-	lforate(integer) : "LFO rate (0-1000)" : 0						// NEEDHELP
-	lfomodpitch(integer) : "LFO mod pitch (0-100)" : 0				// NEEDHELP
-	lfomodvol(integer) : "LFO mod vol (0-100)" : 0					// NEEDHELP
-	cspinup(integer) : "Incremental Spinup Count" : 0				// NEEDHELP
-	radius(string) : "Max Audible Distance" : "1250" : "Maximum distance at which this sound is audible."
-	spawnflags(flags) =
-	[
-		1: "Play everywhere" : 0
-		16:"Start Silent": 1
-		32:"Is NOT Looped": 1
-	]
-	SourceEntityName(target_destination) : "SourceEntityName" : : "If an entity is specified, sound will come from this named entity instead of the location of ambient_generic."
-
-	// Inputs
-	input Pitch(integer) : "Sets the sound pitch, expressed as a range from 1 to 255, where 100 is the sound's default pitch."
-	input PlaySound(void) : "Starts the sound."
-	input StopSound(void) : "Stops the sound if it is playing."
-	input ToggleSound(void) : "Toggles the sound between playing and stopping."
-	input Volume(integer) : "Sets the sound volume, expressed as a range from 0 to 10, where 10 is the loudest."
-	input FadeIn(integer) : "Fades the sound up to full volume over a specified number of seconds, with a range from 0 to 100 seconds."
-	input FadeOut(integer) : "Fades the sound to silence over a specified number of seconds, with a range from 0 to 100 seconds."
-]
-
-@PointClass base(Targetname) iconsprite("editor/point_template.vmt") = point_template : 
-	"Turns an entity, or set of entities, into a single template that can be instanced anywhere, and multiple times. "+
-	"If there are interdependencies (entity I/O, hierarchy, or other name references) between the entities "+
-	"in the template, the entities in the template will have their names changed and the interdependencies will "+
-	"be reconnected to the changes names. The name change format is as follows: '<original name>&0000', where the 0000 "+
-	"will be replaced with the current global template instance, so wildcard searches for '<original name>*' will still find them.\n"+
-	"If you don't want the name fixup to happen, because you're only spawning the template once, or you want inputs to "+
-	"trigger all instances of the template, check the 'Preserve entity names' spawnflag. \n"+
-	"To spawn the template in other places, use an env_entity_maker."
-[
-	spawnflags(flags) =
-	[
-		1 : "Don't remove template entities" : 0
-		2 : "Preserve entity names (Don't do name fixup)" : 1
-	]
-
-	Template01(target_destination) : "Template 1"
-	Template02(target_destination) : "Template 2"
-	Template03(target_destination) : "Template 3"
-	Template04(target_destination) : "Template 4"
-	Template05(target_destination) : "Template 5"
-	Template06(target_destination) : "Template 6"
-	Template07(target_destination) : "Template 7"
-	Template08(target_destination) : "Template 8"
-	Template09(target_destination) : "Template 9"
-	Template10(target_destination) : "Template 10"
-	Template11(target_destination) : "Template 11"
-	Template12(target_destination) : "Template 12"
-	Template13(target_destination) : "Template 13"
-	Template14(target_destination) : "Template 14"
-	Template15(target_destination) : "Template 15"
-	Template16(target_destination) : "Template 16"
-
-	// Inputs
-	input ForceSpawn(void) : "Spawn an instance of the template at the original position."
-
-	// Outputs
-	output OnEntitySpawned(void) : "Fired after spawning an instance of this template."
-]
-
-@FilterClass base(BaseFilter) iconsprite("editor/filter_multiple.vmt") = filter_multi :
-	"A filter that tests the activator against multiple filters. This allows you to build more complex filters, such as"+
-	"'Allow anyone on Team 1 who is also class engineer', or 'Allow everyone except classes npc_zombie and npc_headcrab'."
-[
-	filtertype(choices) : "Logic Type" : 0 =
-	[
-		0 : "AND (all filters must pass)"
-		1 : "OR (any filter must pass)"
-	]
-
-	Negated(choices) : "Negate Outcome" : 0 : "Whether to negate the result of the subfilters, after combining them using the Logic Type chosen.\n"+
-		"Negating the outcome using the AND logic type means that any subfilter must fail for this filter to pass.\n"+
-		"Negating the outcome using the OR logic type means that all subfilters must fail for this filter to pass." =
-	[
-		0 : "No"
-		1 : "Yes"
-	]
-
-	Filter01(filterclass) : "Filter 1" : : "Activator filter to test."
-	Filter02(filterclass) : "Filter 2" : : "Activator filter to test."
-	Filter03(filterclass) : "Filter 3" : : "Activator filter to test."
-	Filter04(filterclass) : "Filter 4" : : "Activator filter to test."
-	Filter05(filterclass) : "Filter 5" : : "Activator filter to test."
-]
-
-@FilterClass base(BaseFilter) iconsprite("editor/filter_name.vmt") = filter_activator_name :
-	"A filter that filters by the name of the activator."
-[
-	filtername(target_destination) : "Filter Name" : : "The name to filter by. If the filter mode is Allow, only entities whose "+
-		"name matches the given string will pass the filter. If the filter mode is Disallow, "+
-		"all entities EXCEPT those whose name matches the string will pass the filter."
-]
-
-@FilterClass base(BaseFilter) iconsprite("editor/filter_class.vmt") = filter_activator_class :
-	"A filter that filters by the class name of the activator."
-[
-	filterclass(string) : "Filter Classname" : : "The class name to filter by. If the filter mode is Allow, only entities whose "+
-		"class name matches the given string will pass the filter. If the filter mode is Disallow, "+
-		"all entities EXCEPT those whose class name matches the given string will pass the filter."
-]
-
-@FilterClass base(BaseFilter) iconsprite("editor/filter_class.vmt") = filter_activator_mass_greater :
-	"A filter that filters by the mass of the activator."
-[
-	filtermass(float) : "Filter Mass" : : "The mass to filter by. If the filter mode is Allow, only entities whose "+
-		"mass is greater than the give float will pass the filter. If the filter mode is Disallow, "+
-		"all entities EXCEPT those whose mass is greater than the given float will pass the filter."
-]
-
-@FilterClass base(BaseFilter) = filter_damage_type :
-	"A damage filter that filters by the type of damage inflicted. This can only be used as a damage filter, not as an activator filter."
-[
-	damagetype(choices) : "Damage type" : 64 : "The damage type to filter by. If the filter mode is Allow, only damage types that "+
-		"match will pass the filter. If the filter mode is Disallow, all damage types EXCEPT those who match will pass the filter." =
-	[
-		0 : "GENERIC"
-		1 : "CRUSH"
-		2 : "BULLET"
-		4 : "SLASH"
-		8 : "BURN"
-		16 : "FREEZE"
-		32 : "FALL"
-		64 : "BLAST"
-		128 : "CLUB"
-		256 : "SHOCK"
-		512 : "SONIC"
-		1024 : "ENERGYBEAM"
-		16384: "DROWN"
-		32768 : "PARALYSE"
-		65536 : "NERVEGAS"
-		131072 : "POISON"
-		262144 : "RADIATION"
-		524288 : "DROWNRECOVER"
-		1048576 : "CHEMICAL"
-		2097152 : "SLOWBURN"
-		4194304 : "SLOWFREEZE"
-	]
-]
-
-@FilterClass base(BaseFilter) iconsprite("editor/filter_class.vmt") sphere(filter_radius) sphere(filter_outer_radius) = filter_enemy :
-	"A filter that filters a potential enemy entity by a set of criteria."
-[
-	filtername(string) : "Name/Classname" : : "The classname or entity name to filter by. If the filter mode is Allow, only entities whose "+
-		"class name matches the given string will pass the filter. If the filter mode is Disallow, "+
-		"all entities EXCEPT those whose class name matches the given string will pass the filter."
-		
-	filter_radius(float) : "Radius" : 0 : "Radius by which to test the proximity of the enemy.  If the filter mode is Allow, only entities whose "+
-		"distance is equal to or closer than the radius will pass the filter. If the filter mode is Disallow, "+
-		"all entities outside the radius will pass the filter."
-
-	filter_outer_radius(float) : "Outer Radius" : 0 : "Enemies outside this radius are considered invalid if Allow is set and valid if Disallow is set."
-	
-	filter_max_per_enemy(integer) : "Max Squadmates Per Enemy" : 0 : "Maximum number of squadmates allowed to target any given entity."
-	
-	spawnflags(Flags) =
-	[
-		1 : "Do not lose target if already aquired but filter failed." : 0
-	]
-]
-
-@PointClass base(BaseNPCMaker) iconsprite("editor/npc_maker.vmt") sphere(radius) = npc_template_maker : 
-	"An entity that creates NPCs. The NPCs it creates are clones of a template NPC. NPCs are spawned around this maker's origin, or at specified destination points."
-[
-	spawnflags(Flags) = 
-	[
-		256 : "Always use radius spawn" : 0
-		512 : "Don't preload template models" : 0
-	]
-
-	TemplateName(target_destination) : "Name of template NPC" : "" : "Template NPC that this maker should be creating clones of."
-
-	Radius(float) : "Radius" : 256 : "Radius around this maker within which NPCs are to be placed. Spawned NPCs will try and find empty space within this radius to spawn."
-
-	DestinationGroup(target_destination) : "Name of Destination Group" : : "If you'd like spawned NPCs to be created at an info_npc_spawn_destination entity, enter the name of that entity here. If you have more than one destination entity by that name, the Destination Criteria will be used to select one from the group."
-	CriterionVisibility(Choices) : "Dest. Criterion: Visible to player?" : 2 : "Should the NPC try to spawn at a destination that the player can see? Only applicable if a Destination Group is being used." =
-	[
-		0 : "Yes"
-		1 : "No"
-		2 : "Don't Care"
-	]
-	CriterionDistance(Choices) : "Dest. Criterion: Distance to player?" : 2 : "Should the NPC try to spawn nearest to or farthest from the player's current location? Only applicable if a Destination Group is being used." =
-	[
-		0 : "Nearest"
-		1 : "Farthest"
-		2 : "Don't Care"
-	]
-
-	MinSpawnDistance(integer) : "Minimum spawn distance from player" : 0 : "The spawn destination node distance to the player will have to be further or equal than this value."
-
-	//Inputs
-	input SpawnNPCInRadius(void) : "Spawn an NPC somewhere within the maker's radius."
-	input SpawnNPCInLine(void) : "Spawn an NPC somewhere within a line behind the maker."
-	input SpawnMultiple(integer) : "Spawn multiple NPCs (uses destination group, else radius)."
-	input ChangeDestinationGroup(string) : "Switch to a different set of Destination entities."
-	input SetMinimumSpawnDistance(integer) : "Set the minimum spawn distance from player to destination node."
-]
-
-//-------------------------------------------------------------------------
-//
 // Point Classes
 //
 //-------------------------------------------------------------------------
@@ -730,8 +221,18 @@
 	output OnDisable(void) : "Fired when this spawn point is disabled"
 ]
 
-@PointClass base(Angles) studioprop("models/weapons/tool_barricade/w_barricadeboard.mdl") = nmrih_barricade : "A point that allows the player to barricade"
+@PointClass base(Targetname, Angles) studioprop("models/weapons/tool_barricade/w_barricadeboard.mdl") = nmrih_barricade : "A point that allows the player to barricade"
 [
+	spawnflags(flags) =
+	[
+		1 : "Start Used (prop is placed on spawn)" : 0
+	]
+
+	modeloverride(studio) : "Model Override" : "" : "Sets a custom prop model for this barricade point."
+
+	// Outputs
+	output OnBarricade(void) : "Fires when the prop is placed, with activator being the placer."
+	output OnBreak(void) : "Fires when the prop breaks, with activator being the attacker."
 ]
 
 @PointClass base(Targetname, Angles) size(16 16 16) line(255 255 255, targetname, target) color(247 181 82) = path_corner : "Generic path point"
@@ -828,7 +329,7 @@
 
 @PointClass base(Targetname, Parentname, EnableDisable) iconsprite("editor/instant_trigger.vmt") sphere(radius) = instant_trigger: "Radius based trigger."
 [
-	filtername(filterclass) : "Filter Name" : "" : "Filter to use to see if activator triggers me. See filter_activator_name for more explanation."
+	filtername(target_destination) : "Filter Name" : "" : "Filter to use to see if activator triggers me. See filter_activator_name for more explanation."
 	
 	allowPlayers(choices) : "Allow Players?" : 1 =
 	[
@@ -1001,7 +502,8 @@
 [
 	// Inputs
 	input ApplyCvars(string) : "Applies cvars, with parameter override of a string in <cvar> <value> format, and optionally with ';' delimiter for multiple cvars, e.g. sv_gravity 200;sv_brainstem 1"
-	input RevertCvar(string) : "Reverts cvar to ruleset value (when available), or default, with parameter override of a cvar name as string."
+	input RevertCvar(string) : "Reverts cvar to a ruleset value (when available), or default, with parameter override of a cvar name as string."
+	input RevertAllMapCvars(string) : "Reverts all cvars that were changed by this map, to a ruleset value (when available), or default. Doesn't revert difficulty / script / mutator changes."
 ]
 
 @PointClass base(Targetname) iconsprite("editor/logic_progress.vmt") = logic_progress : "An entity that displays a HUD progress bar on clients, stores progress, and fires an output on completion."
@@ -1022,6 +524,12 @@
 	[
 		0 : "No"
 		1 : "Yes"
+	]
+	
+	circle(choices) : "HUD Style" : 0 : "Visual style of the progress bar, circles are drawn in clockwise direction at the center of the screen." = 
+	[
+		0 : "Bar"
+		1 : "Circle"
 	]
 	
 	length(float) : "Progress Length" : 5 : "Length to completion in seconds when the progress activates. Only works in Dynamic mode."
@@ -1412,6 +920,14 @@
 @PointClass base(Targetname, Angles, Parentname, BaseViewControl) studioprop("models/editor/camera.mdl") = point_viewcontrol_multiplayer : 
 	"A camera entity that controls the player's view. While it's active, the player will see out of the camera. Has multiplayer support." 
 [
+	spawnflags(flags) =
+	[
+		4 : "Freeze Player" : 1
+		8 : "Infinite Hold Time" : 0
+		16 : "Snap to goal angles" : 0
+		32 : "Make Player non-solid" : 0
+		64 : "Interruptable by Player" : 0
+	]
 ]
 
 @PointClass base(Targetname, Parentname, Angles) worldtext() = point_worldtext : 
@@ -1452,6 +968,12 @@
     input SetFont(integer) : "Set the font."
     input SetOrientation(integer) : "Set the orientation."
     input SetRainbow(integer) : "Enable rainbow text."
+]
+
+@PointClass base(Targetname) = player_weaponstrip : "Strips player's weapons"
+[
+	// Inputs
+	input Strip(void) : "Strip player's weapons (excl. fists and zippo)"
 ]
 
 //-------------------------------------------------------------------------
@@ -1616,6 +1138,12 @@
 		0 : "No"
 		1 : "Yes"
 	]
+
+	spawnflags(flags) =
+	[
+		8 : "Infinite Hold Time" : 0
+		16 : "Snap to goal angles" : 0
+	]
 ]
 
 //-------------------------------------------------------------------------
@@ -1684,6 +1212,12 @@
 	spawn_regen_target(float) : "Spawn Regeneration Target" : "-1.0" : "Objective Mode Only: Dead zombies are cleared for live ones over 2 minutes time to reach this percent of live zombies. Use 0.01 (1%) to 1.0 (100%)."
 
 	ignore_room_size(choices) : "Ignore Room Size" : 0 : "By default, Overlord won't spawn more zombies for small rooms once visited by player. When set to 'Yes', this brush will always regenerate spawns, and is treated as a large room regardless of its size." =
+	[
+		0 : "No"
+		1 : "Yes"
+	]
+
+	despawn_ignore_population(choices) : "Despawn Ignore Population" : 0 : "By default, zombies only despawn when zone population is over the maximum, even when they're unseen. This may leave behind stale zombies within previous areas. Set to 'No' for classic behavior where visited zones keep max. zombies, or 'Yes' to always despawn unseen zombies." =
 	[
 		0 : "No"
 		1 : "Yes"
@@ -2125,6 +1659,8 @@
 @PointClass base(Targetname, Angles, Origin, Glowable) studioprop() = item_inventory_box : "Inventory Box"
 [
 	model(studio) : "World Model" : "models/props/army/heli_supplycrate.mdl"
+	skin(integer) : "Model Skin" : 0
+	modelscale(float) : "Model Scale" : "1.0" : "A multiplier for the size of the inventory box model."
 	spawnempty(choices) : "Spawn Empty?" : 0 : "Should the inventory box spawn without contents?" =
 	[
 		0 : "No"
@@ -2143,11 +1679,18 @@
 		1 : "Yes"
 	]
 	
+	hidetakebutton(choices) : "Hide TAKE Button?" : 0 : "Should the inventory box hide the TAKE button? This effectively 'locks' the box while its contents remain visible." =
+	[
+		0 : "No"
+		1 : "Yes"
+	]
+	
 	background(material) : "Background Texture Override" : "" : "Optional background texture override, when empty, a default texture will be used."
 	
 	spawnflags(Flags) =
 	[
 		1 : "Remove empty box" : 0
+		8 : "Disable motion" : 0
 	]
 	
 	// Inputs
@@ -2458,7 +2001,7 @@
 		1 : "Yes"
 	]
 	
-	filtername(filterclass) : "Filter Name" : : "Filter to use to see if activator triggers me. See filter_activator_name for more explanation."
+	filtername(target_destination) : "Filter Name" : : "Filter to use to see if activator triggers me. See filter_activator_name for more explanation."
 	
 	SetGravityScale(float) : "Scale gravity of objects in the field." : "1.0"
 	input SetGravityScale(float) : "Scale gravity of objects in the field."
@@ -2504,6 +2047,11 @@
 	speed(float) : "Speed Modifier" : "0.5" : "The speed of any players inside the trigger will be multiplied by this value."
 ]
 
+@SolidClass base(Trigger) = trigger_tonemap : "Changes tonemap controllers for players touching the trigger."
+[
+	TonemapName(target_destination) : "Tonemap Name" : : "The name of the tonemap controller entity associated with this trigger."
+]
+
 //-------------------------------------------------------------------------
 //
 // NPCs
@@ -2533,15 +2081,19 @@
 	output OnReleased(void) : "Fires when no longer targeted"
 ]
 
-@NPCClass base(Targetname, BaseNPC, BaseZombie, Glowable) studio("models/nmr_zombie/berny.mdl") = npc_nmrih_shamblerzombie : "npc_nmrih_shamblerzombie"
+@NPCClass base(Targetname, BaseNPC, BaseZombie, Glowable) studio("models/nmr_zombie/maxx.mdl") = npc_nmrih_basezombie : "Base zombie class, useful for overrides."
 [
 ]
 
-@NPCClass base(Targetname, BaseNPC, BaseZombie, Glowable) studio("models/nmr_zombie/jogger.mdl") = npc_nmrih_runnerzombie : "npc_nmrih_runnerzombie"
+@NPCClass base(Targetname, BaseNPC, BaseZombie, Glowable) studio("models/nmr_zombie/berny.mdl") = npc_nmrih_shamblerzombie : "Shambler (walker) zombie."
 [
 ]
 
-@NPCClass base(Targetname, BaseNPC, BaseZombie, Glowable) studio("models/nmr_zombie/zombiekid_girl.mdl") = npc_nmrih_kidzombie : "npc_nmrih_kidzombie"
+@NPCClass base(Targetname, BaseNPC, BaseZombie, Glowable) studio("models/nmr_zombie/jogger.mdl") = npc_nmrih_runnerzombie : "Runner zombie."
+[
+]
+
+@NPCClass base(Targetname, BaseNPC, BaseZombie, Glowable) studio("models/nmr_zombie/zombiekid_girl.mdl") = npc_nmrih_kidzombie : "Kid zombie."
 [
 ]
 
