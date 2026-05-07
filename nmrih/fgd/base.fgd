@@ -3997,6 +3997,13 @@
 		1 : "Yes"
 	]
 
+	// @NMRiH - Felis
+	ignorewind(choices) : "Ignore Wind?" : 0 : "When set, particles spawned by this entity ignore wind speed (i.e. env_wind)." =
+	[
+		0 : "No"
+		1 : "Yes"
+	]
+
 	// Inputs
 	input TurnOn(void) : "Turn on."
 	input TurnOff(void) : "Turn off."
