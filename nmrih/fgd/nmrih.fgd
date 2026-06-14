@@ -386,6 +386,9 @@
 	
 	input RestartRound(void) : "Restarts round immediately."
 	
+	input ForceRespawnPlayer(void) : "Respawns a player (activator of the I/O chain) by force, skipping valid spawn point check."
+	input ForceRespawnAllPlayers(void) : "Respawns all players by force, skipping valid spawn point checks."
+	
 	output OnRoundRestart(void) : "Fired on round restart."
 	output PreRoundRestart(void) : "Fired on pre round restart."
 	output OnRoundEnd(void) : "Fired on round end."
